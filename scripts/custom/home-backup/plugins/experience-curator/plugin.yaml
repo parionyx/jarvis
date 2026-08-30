@@ -1,0 +1,6 @@
+name: experience-curator
+version: 1.0.0
+description: "Watches completed sessions and distills unfamiliar-task wins into reusable skills (auto mode + /experience command)."
+author: "Parionyx"
+hooks:
+  - on_session_end

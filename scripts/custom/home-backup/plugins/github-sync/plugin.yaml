@@ -1,0 +1,6 @@
+name: github-sync
+version: 1.0.0
+description: "Auto-pushes new/updated agent-created skills and saved artifacts to private GitHub repos via gh CLI."
+author: "Parionyx"
+hooks:
+  - post_tool_call

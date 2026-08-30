@@ -1,0 +1,12 @@
+{
+  "note": "One-time MAC -> room/person mapping. Dashboard auto-tallies per-room devices & people from the live LAN sweep. No router creds.",
+  "exclude": ["9c-d4-a6-b9-f5-51", "router", "this-pc"],
+  "devices": [
+    { "mac": "5c-35-48-a2-aa-37", "room": "Living Room", "type": "phone",  "person": "Abhishek" },
+    { "mac": "5c-35-48-a2-aa-76", "room": "Living Room", "type": "laptop", "person": "Abhishek" },
+    { "mac": "5c-35-48-a2-aa-7d", "room": "Bedroom 1",   "type": "phone",  "person": "Guest" },
+    { "mac": "5c-35-48-a2-aa-7f", "room": "Bedroom 1",   "type": "iot",    "person": "" },
+    { "mac": "5c-35-48-a3-d5-45", "room": "Kitchen",     "type": "iot",    "person": "" },
+    { "mac": "5c-35-48-7b-44-8d", "room": "Bedroom 2",   "type": "phone",  "person": "Family" }
+  ]
+}

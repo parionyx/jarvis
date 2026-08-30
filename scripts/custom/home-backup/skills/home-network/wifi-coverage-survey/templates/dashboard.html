@@ -1,0 +1,87 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WiFi 3D Coverage & Occupancy — JARVIS</title>
+<style>
+:root{--bg:#020617;--panel:#0b1220;--line:#1e293b;--cyan:#22d3ee;--em:#34d399;--txt:#e2e8f0;--mut:#94a3b8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:"JetBrains Mono",ui-monospace,monospace}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--cyan);animation:p 1.8s infinite}
+@keyframes p{0%{box-shadow:0 0 0 0 rgba(34,211,238,.6)}70%{box-shadow:0 0 0 10px rgba(34,211,238,0)}100%{box-shadow:0 0 0 0 rgba(34,211,238,0)}}
+h1{font-size:16px;margin:0}.sub{color:var(--mut);font-size:11px}
+.layout{display:grid;grid-template-columns:1fr 290px;gap:14px;padding:14px 20px}
+#view{height:72vh;border:1px solid var(--line);border-radius:12px;background:#06101f;overflow:hidden}
+.side{display:flex;flex-direction:column;gap:12px}.card{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:14px}
+.card h3{font-size:12px;margin:0 0 8px;color:#f1f5f9}.big{font-size:34px;font-weight:600;color:var(--em);line-height:1}
+.note{font-size:10px;color:var(--mut);line-height:1.6;margin-top:8px}.dev{font-size:10px;color:var(--mut);max-height:200px;overflow:auto}
+.dev div{padding:2px 0;border-bottom:1px dashed #16203a}
+.legend{display:flex;gap:8px;flex-wrap:wrap;font-size:10px;color:var(--mut)}
+.sw{width:14px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle}
+button{background:#0f1f33;color:var(--cyan);border:1px solid #1e3a55;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-family:inherit}
+</style></head><body>
+<header><div class="dot"></div><div><h1>WiFi 3D Coverage & Occupancy</h1>
+<div class="sub">Single-AP — coverage heatmap + LAN live device count. Per-room people = N/A without mesh; use registry.json map.</div></div></header>
+<div class="layout"><div id="view"></div>
+<div class="side">
+<div class="card"><h3>Per-room tally (auto)</h3><div id="roomCards"></div>
+<div class="note">auto from live sweep + registry.json map. 1 phone≈1 person.</div></div>
+<div class="card"><h3>Live devices on LAN</h3><div class="big" id="devCount">–</div>
+<div class="dev" id="devList"></div><div style="margin-top:8px"><button id="refresh">Refresh now</button></div></div>
+<div class="card"><h3>Coverage (RSSI)</h3><div class="legend">
+<span><i class="sw" style="background:#ef4444"></i> ≤-75</span><span><i class="sw" style="background:#f59e0b"></i> -65</span>
+<span><i class="sw" style="background:#eab308"></i> -55</span><span><i class="sw" style="background:#84cc16"></i> -45</span>
+<span><i class="sw" style="background:#22c55e"></i> ≥-35</span></div>
+<div class="note">3D surface = inverse-distance-weighted RSSI. Walk survey to populate. Drag to orbit.</div></div>
+</div></div>
+<script type="importmap">
+{ "imports": { "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+"three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const view=document.getElementById('view');
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x06101f);
+const cam=new THREE.PerspectiveCamera(55,view.clientWidth/view.clientHeight,0.1,1000);
+cam.position.set(-8,10,12);
+const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setSize(view.clientWidth,view.clientHeight);
+view.appendChild(renderer.domElement);
+const controls=new OrbitControls(cam,renderer.domElement); controls.enableDamping=true;
+scene.add(new THREE.GridHelper(40,40,0x142036,0x0e1830));
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const dir=new THREE.DirectionalLight(0xffffff,0.6); dir.position.set(10,20,10); scene.add(dir);
+let plan=[],samples=[],roomData=[];
+function rssiColor(r){const t=Math.max(0,Math.min(1,(r+75)/40));return new THREE.Color().setHSL(0.33*t,0.85,0.5);}
+function makeLabel(text){const c=document.createElement('canvas');c.width=512;c.height=128;
+const g=c.getContext('2d');g.fillStyle='#cbd5e1';g.font='44px monospace';g.textAlign='center';g.fillText(text,256,80);
+const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true}));sp.scale.set(4,1,1);return sp;}
+function drawRooms(){for(const r of plan){const geo=new THREE.BoxGeometry(r.w,r.h,r.d);
+const e=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0x334155}));
+e.position.set(r.x+r.w/2,r.h/2,r.y+r.d/2);scene.add(e);
+const l=makeLabel(r.name);l.position.set(r.x+r.w/2,r.h+0.4,r.y+r.d/2);scene.add(l);}}
+function drawRoomTally(){scene.children.filter(c=>c.userData.roomTally).forEach(c=>scene.remove(c));
+for(const r of plan){const rd=roomData.find(x=>x.room===r.name)||{devices:0,people:0};
+const sp=makeLabel(`📡${rd.devices} 🧑${rd.people}`);sp.userData.roomTally=true;
+sp.position.set(r.x+r.w/2,r.h+1.1,r.y+r.d/2);sp.scale.set(4.5,1.1,1);scene.add(sp);}}
+function idw(x,y){let n=0,d=0;for(const s of samples){const dist=Math.hypot(s.x-x,s.y-y)+0.5;n+=s.rssi/(dist*dist);d+=1/(dist*dist);}return d?n/d:-70;}
+function drawSurface(){if(!samples.length)return;const N=40,size=20;
+const geo=new THREE.PlaneGeometry(size,size,N,N);geo.rotateX(-Math.PI/2);const pos=geo.attributes.position;
+for(let i=0;i<pos.count;i++){const x=pos.getX(i),y=pos.getZ(i);const r=idw(x*0.5+5,y*0.5+5);
+pos.setY(i,(r+75)/8);geo.setColorAt(i,rssiColor(r));}
+geo.attributes.position.needsUpdate=true;if(geo.attributes.color)geo.attributes.color.needsUpdate=true;
+scene.add(new THREE.Mesh(geo,new THREE.MeshBasicMaterial({vertexColors:true,wireframe:true,transparent:true,opacity:0.85})));}
+async function load(){const[fp,cov,rooms]=await Promise.all([
+fetch('/api/floorplan').then(r=>r.json()),fetch('/api/coverage').then(r=>r.json()),fetch('/api/rooms').then(r=>r.json())]);
+plan=fp.rooms||[];samples=cov.samples||[];roomData=rooms.rooms||[];drawRooms();drawRoomTally();drawSurface();loadDevices(false);}
+async function loadRooms(){const r=await fetch('/api/rooms').then(r=>r.json());roomData=r.rooms||[];
+const box=document.getElementById('roomCards');box.replaceChildren();
+for(const x of roomData){const c=document.createElement('div');c.style.cssText='font-size:11px;padding:5px 0;border-bottom:1px dashed #16203a;color:#cbd5e1';
+const n=document.createElement('span');n.textContent=x.room+': ';n.style.color='#f1f5f9';
+const v=document.createElement('span');v.textContent=`📡 ${x.devices} devices · 🧑 ${x.people} log`;c.append(n,v);box.appendChild(c);}drawRoomTally();}
+async function loadDevices(force){const d=await fetch('/api/devices'+(force?'?refresh=1':'')).then(r=>r.json());
+document.getElementById('devCount').textContent=d.count;const list=document.getElementById('devList');list.replaceChildren();
+for(const x of d.devices){const row=document.createElement('div');const ip=document.createElement('span');ip.textContent=x.ip;
+const mac=document.createElement('span');mac.style.color='#475569';mac.textContent=' '+(x.mac||'').slice(0,8)+'…';row.append(ip,mac);list.appendChild(row);}}
+document.getElementById('refresh').onclick=()=>{loadDevices(true);loadRooms();};
+function loop(){controls.update();renderer.render(scene,cam);requestAnimationFrame(loop);}
+window.addEventListener('resize',()=>{cam.aspect=view.clientWidth/view.clientHeight;cam.updateProjectionMatrix();renderer.setSize(view.clientWidth,view.clientHeight);});
+load();loop();setInterval(()=>{loadRooms();loadDevices(false);},30000);
+</script></body></html>
