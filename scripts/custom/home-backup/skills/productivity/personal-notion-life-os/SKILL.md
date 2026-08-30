@@ -25,7 +25,7 @@ This skill gives Jarvis full read/write access to the **user's personal Notion w
 |---|---|
 | **Workspace Name** | Life OS |
 | **Bot Name** | Jarvis |
-| **Token** | `NOTION_PERSONAL_API_KEY` = `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` |
+| **Token** | `NOTION_PERSONAL_API_KEY` = `ntn_REDACTED_REPLACE_WITH_YOUR_KEY` |
 | **MCP Server** | `notion-personal` |
 | **MCP Tool Prefix** | `mcp__notion_personal__` |
 
