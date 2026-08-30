@@ -2,7 +2,9 @@
   <img src="assets/banner.png" alt="Hermes Agent" width="100%">
 </p>
 
-# Hermes Agent ☤
+# JARVIS - Hermes Custom Build
+
+> **JARVIS** is a customized fork of [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research. This build includes the **Engineering Artifact Studio**, JARVIS HUD theme, and other custom modifications.
 <p align="center">
   <a href="https://hermes-agent.nousresearch.com/">Hermes Agent</a> | <a href="https://hermes-agent.nousresearch.com/">Hermes Desktop</a>
 </p>
@@ -37,7 +39,7 @@ Use any model you want — [Nous Portal](https://portal.nousresearch.com), OpenR
 ### Linux, macOS, WSL2, Termux
 
 ```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/parionyx/jarvis/main/install.sh | bash
 ```
 
 ### Windows (native, PowerShell)
@@ -224,7 +226,7 @@ full git checkout it creates at `$HERMES_HOME/hermes-agent` (usually
 managed venv, lazy dependencies, gateway, and docs tooling.
 
 ```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/parionyx/jarvis/main/install.sh | bash
 cd "${HERMES_HOME:-$HOME/.hermes}/hermes-agent"
 uv pip install -e ".[all,dev]"
 scripts/run_tests.sh
